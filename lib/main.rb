@@ -53,7 +53,6 @@ class Shoes::App < Qt::Application
       self.frame_style = Qt::Frame::NoFrame
       @widget = widget
       def resizeEvent event
-        puts event
         @widget.size = event.size
         scene.scene_rect =
           Qt::RectF.new(0, 0, event.size.width, event.size.height)
@@ -75,9 +74,22 @@ class Shoes::App < Qt::Application
     add_widget b
     b
   end
+  def para txt
+    t = Qt::GraphicsTextItem.new txt
+    t.text_interaction_flags = Qt::TextBrowserInteraction
+    add_item t
+    t
+  end
+
+  def add_item item
+    widget = Qt::GraphicsWidget.new
+    item.parent_item = widget
+    @_scene.add_item widget
+    @_current_widget.layout.add_item widget
+  end
 
   def add_widget widget
-    proxy = @_scene.add_widget(widget);
+    proxy = @_scene.add_widget(widget)
     @_current_widget.layout.add_item proxy
   end
 end
@@ -85,4 +97,5 @@ end
 Shoes.app do
   button("Hello") { puts self }
   button "Another button"
+  para "hello, this is a para"
 end
