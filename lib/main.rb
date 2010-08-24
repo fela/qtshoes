@@ -14,27 +14,52 @@ module Shoes
 end
 
 require 'forwardable'
-class Shoes::StackLayout < Qt::VBoxLayout
+class Shoes::StackLayout < Qt::GraphicsLinearLayout
+  def add_item_orig *args, &blk
+    addItem *args, &blk
+  end
   extend Forwardable
-  # TODO most are still missing
-  def_delegators :@layout, :add_widget#, :add_layout, :add_item, :remove_item,
+  # TODO most methods are still missing
+  def_delegators :@layout, :add_item#, :add_layout, :add_item, :remove_item,
     #:remove_widget, :remove_layout, :count
   def initialize
     super
-    @layout = Qt::VBoxLayout.new
-    add_layout(@layout, 0)
+    self.orientation = Qt::Vertical
+    @layout = Qt::GraphicsLinearLayout.new do
+      self.orientation = Qt::Vertical
+    end
+    item = Qt::GraphicsWidget.new
+    item.layout = @layout
+    add_item_orig(item)
     add_stretch(1)
+    #void setStretchFactor ( QGraphicsLayoutItem * item, int stretch )
   end
 end
+
 
 class Shoes::App < Qt::Application
   def initialize blk
     super ARGV
-    @_main_window = Qt::Widget.new do
+    @_scene = Qt::GraphicsScene.new
+
+    @_current_widget = Qt::GraphicsWidget.new do
       self.layout = Shoes::StackLayout.new
+    end
+    @_scene.add_item @_current_widget
+
+    widget = @_current_widget
+    #init_scene
+    @_main_window = Qt::GraphicsView.new @_scene do
+      self.frame_style = Qt::Frame::NoFrame
+      @widget = widget
+      def resizeEvent event
+        puts event
+        @widget.size = event.size
+        scene.scene_rect =
+          Qt::RectF.new(0, 0, event.size.width, event.size.height)
+      end
       resize 200, 400
     end
-    @_current_widget = @_main_window
 
     instance_eval &blk
 
@@ -44,16 +69,16 @@ class Shoes::App < Qt::Application
   end
   def button txt, &blk
     b = Qt::PushButton.new txt do
-      puts blk
-      puts self
       #connect(SIGNAL :clicked) &blk if blk # TODO: not working ?????
       connect(SIGNAL :clicked) { blk.call } if blk
     end
     add_widget b
+    b
   end
 
   def add_widget widget
-    @_current_widget.layout.add_widget widget, 0
+    proxy = @_scene.add_widget(widget);
+    @_current_widget.layout.add_item proxy
   end
 end
 
@@ -61,48 +86,3 @@ Shoes.app do
   button("Hello") { puts self }
   button "Another button"
 end
-
-
-
-
-
-
-
-#a = Qt::Application.new(ARGV)
-#
-#quit = Qt::PushButton.new('Quit', nil)
-#quit.resize(75, 30)
-#quit.setFont(Qt::Font.new('Times', 18, Qt::Font::Bold))
-#
-#Qt::Object.connect(quit, SIGNAL('clicked()'), a, SLOT('quit()'))
-#
-#quit.show
-#a.exec
-#exit
-
-
-
-#require 'Qt4'
-#
-#Qt::Application.new(ARGV) do
-#    Qt::Widget.new do
-#
-#        self.window_title = 'Hello QtRuby v1.0'
-#        resize(200, 100)
-#
-#        button = Qt::PushButton.new('Quit') do
-#            connect(SIGNAL :clicked) { puts "clicked" }
-#        end
-#
-#        label = Qt::Label.new('<big>Hello Qt in the Ruby way!</big>')
-#
-#        self.layout = Qt::VBoxLayout.new do
-#            add_widget(label, 0, Qt::AlignCenter)
-#            add_widget(button, 0, Qt::AlignRight)
-#        end
-#
-#        show
-#    end
-#
-#    exec
-#end
