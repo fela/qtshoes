@@ -36,6 +36,81 @@ class Shoes::StackLayout < Qt::GraphicsLinearLayout
   end
 end
 
+class Shoes::FlowLayout < Qt::GraphicsLayout
+  def initialize
+    super
+    @item_list = []
+  end
+
+  def add_item item
+    @item_list << item
+  end
+
+
+  # overwrite the methods that are virtual in Qt
+  def count
+    @item_list.size
+  end
+
+  def item_at index
+    @item_list[index]
+  end
+
+  def remove_at index
+    @item_list.delete_at index
+  end
+
+  def size_hint which, constraint=Qt::SizeF
+    puts "size hint"
+    self.minimum_size
+  end
+
+  def minimum_size
+    size = Qt::SizeF.new
+    @item_list.each do |item|
+     size = size.expanded_to item.minimum_size
+    end
+
+    #size += QSize(2*margin(), 2*margin());
+    size
+  end
+
+  def set_geometry rect
+    super rect
+    do_layout rect
+  end
+
+  def do_layout rect
+    x = y = 0
+    row_height = 0
+    max_width = self.preferred_size.width
+    puts max_width
+    @item_list.each do |item|
+      rect = item.bounding_rect
+      row_height = rect.height if rect.height > row_height
+      item.x, item.y = x, y
+      if x > max_width && rect.width < max_width
+        # start a new row
+        x = 0
+        y += row_height
+        row_height = rect.height
+      end
+      item.x, item.y = x, y
+      x += rect.width
+    end
+  end
+
+  def updateGeometry
+    puts "update"
+  end
+
+  alias itemAt item_at
+  alias removeAt remove_at
+  alias sizeHint size_hint
+  alias minimumSize minimum_size
+  alias setGeometry set_geometry
+end
+
 
 class Shoes::App < Qt::Application
   def initialize blk
@@ -44,6 +119,7 @@ class Shoes::App < Qt::Application
 
     @_current_widget = Qt::GraphicsWidget.new do
       self.layout = Shoes::StackLayout.new
+      puts self.layout
     end
     @_scene.add_item @_current_widget
 
@@ -52,11 +128,15 @@ class Shoes::App < Qt::Application
     @_main_window = Qt::GraphicsView.new @_scene do
       self.frame_style = Qt::Frame::NoFrame
       @widget = widget
-      def resizeEvent event
+
+      # adapt scene to the window size:
+      def resize_event event
         @widget.size = event.size
         scene.scene_rect =
           Qt::RectF.new(0, 0, event.size.width, event.size.height)
       end
+      alias resizeEvent resize_event
+      
       resize 200, 400
     end
 
@@ -75,6 +155,13 @@ class Shoes::App < Qt::Application
     b
   end
   def para txt
+    txt.split(/\s+/).each do |word|
+      text_item word
+    end
+  end
+
+private
+  def text_item txt
     t = Qt::GraphicsTextItem.new txt
     t.text_interaction_flags = Qt::TextBrowserInteraction
     add_item t
@@ -97,5 +184,10 @@ end
 Shoes.app do
   button("Hello") { puts self }
   button "Another button"
-  para "hello, this is a para"
+  button "b2"
+  button "b3"
+  button "button"
+  button "bb"
+  para "hello, this is a para. A quite long para actually"
+  para "para 2"
 end
